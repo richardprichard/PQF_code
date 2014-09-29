@@ -1,0 +1,658 @@
+![PAS logo](http://ebmedia.eventbrite.com/s3-build/images/1635885/61546715181/3/logo.png)
+
+Introduction
+========================================================
+
+This is the Planning Quality Framework report for Council `r report_lead`. It has been run with the sample flag set to `r sample`. If this is set to true then all the councils have had their application counts reduced down to the size of the smallest. 
+It tells the story of the performance of the council's Planning Service taking account of:
+* Facts; real-time data on planning applications.
+* Opinion; what customers say about the planning service?
+* Development quality: how good is 'what-gets-built'?
+The report includes some bar charts, line graphs and boxplots [guide to box plots](http://en.wikipedia.org/wiki/Box_plot). In the line graphs your council is represented by the thicker coloured line and its average is the thick red line. The overall 'trend' is indicated by the thicker, darker grey background.
+
+The report has individual sections which are useful but on their own don't tell the whole story. The real story emerges when different parts of the report are knitted together. For example, how many councils have carried out expensive process reviews as the answer to speeding things up and failing to notice that they say yes more than their peers, create less waste and have happier customers? That is the essence of this report - a much more rounded story of what is happening and what direction things are heading in.
+
+PART 1 - The Planning Service Profile 
+========================================================
+
+This shows the different kinds and volumes of development the Planning Service handles, how it receives applications, and the fee income.
+
+1a Application counts
+---------------------
+*Purpose:* Understanding the volume of applications for each type of development over the last 18 months
+
+```{r application_pie, echo=FALSE, warning=FALSE, fig.width=7, fig.height=5}
+i <- select(lead_council, council, dev_group)
+p <- ggplot(i, aes(x=factor(1), fill=factor(dev_group))) # 
+p <- p + geom_bar(width=3) # bar chart of counts
+p <- p + coord_polar(theta="y")
+p <- p + labs(x="",y="")
+#cols <- colorRampPalette(brewer.pal(12,"Set3")) (length(levels(factor(i$dev_group))))
+#p <- p + scale_fill_manual(values=cols)
+p
+```
+
+*For review:*
+* *What is most of the work?*  Usually it's small and householder applications. 
+* *Do the volumes look right?* If not, could it be that data is missing? 
+* *Do your priorities, processes and practices reflect the variety / volume of the work?* Could you standardise/streamline more of the routine work or ?allocate resources differently? Is project and improvement work targeted at the right things?
+
+1b. Application Counts/ Fee Comparator
+---------------------
+*Purpose:* To understand how your work and fee income compares with your peers.
+
+This is the count and fee income of applications received, grouped into categories. The colour key is the same as for the pie chart above:
+
+```{r application_counts, echo=FALSE, warning=FALSE, fig.width=5, fig.height=6, fig.show='hold'}
+
+i <- select(whole_set, council, dev_group, application_fee)
+# reorder in frequency order (see http://stackoverflow.com/questions/5208679/order-bars-in-ggplot2-bar-graph?rq=1 )
+i <- within(i, council <- factor(council, levels=names(sort(table(council),decreasing=TRUE))))
+p <- ggplot(i, aes(x=council, fill=dev_group)) # begin plotting our dataframe
+p <- p + geom_bar() # bar chart of counts
+p <- p + coord_flip()
+p <- p + theme(legend.position="none")
+p
+
+# using aggregate to sum, as geom_bar throws an error when using stat='sum'. I don't know why. 
+j <- aggregate(application_fee ~ council + dev_group, data=i, FUN=sum)
+# reorder in count order to match the plot above
+j <- within(j, council <- factor(council, levels = levels(i$council)))
+p <- ggplot(data =j, aes(x=council, y=application_fee/1000, fill=dev_group)) # begin plotting our dataframe
+p <- p + geom_bar(stat="identity") # bar chart of sum of fees
+p <- p + coord_flip()
+p <- p + labs(y='18 month fees ?/k')
+p <- p + theme(legend.position="none")
+p
+```
+
+*For review:*
+* *Is your application and/or fee profile very different to your peers?* Is this expected? Are they doing something differently? Are these the right councils to compare with?
+* *Are your peers seeing more of a particular type of development than you?*  Again, is this what you'd expect? Is there something happening in other places you could learn from? 
+* *Do the applications / fees mix represent any risk?* Does a large proportion fees come from a small number of applications? Are you managing this risk appropriately ?
+
+1c. Applications over time 
+---------------------
+*Purpose:* To understand how the counts of the various sorts of applications is changing over time
+
+```{r application_trend, echo=FALSE, warning=FALSE, fig.width=10, fig.height=10}
+i <- select(whole_set, council, dev_group, received_quarter)
+i_pivot <- dcast(i, council + received_quarter + dev_group ~ 'received' , value.var='council', fun.aggregate=length)
+i_pivot$received_quarter <- as.numeric(str_replace(i_pivot$received_quarter,"Q",""))
+p <- ggplot(i_pivot, aes(x=received_quarter, y=received, colour=council)) # begin plotting our dataframe
+p <- p + geom_line() # bar chart of counts
+#p <- p + theme(legend.position="none")
+p <- p + facet_wrap(~ dev_group, scales="free_y")
+p
+```
+
+*For review:*
+* *Is there a a rise/fall in the numbers of certain development types?* Does this correspond with your fee profile? Have the changes to permitted development had any affect?
+* *Are there any surprises/new things happening?* Is the 'market' moving in a particular way?
+* *If there is a trend and it continues, how might this affect things?* How will your fee profile change? Is your skills base going to need to change? your fee profile over the next few quarters?
+* *Have you 'geared up' / formed teams to do certain types of work?* How might this affect things?
+
+1d. Applications from the Portal
+---------------------
+*Purpose:* To understand how much work is received via the Planning Portal.Applications that are received via the Portal can often 'behave' differently. This worth keeping in mind, especially when looking at performance later in the report.
+
+```{r portal, echo=FALSE, fig.width=7, fig.height=5, warning=FALSE}
+t <- "Portal applications over time"
+y_label <- "received from portal"
+x_label <- "received quarter"
+i <- select(lead_council, council, lead_val = is_portal, lead_x=received_quarter)
+j <- select(comparator_group, council, group_val = is_portal, group_x=received_quarter)
+plot_type <- "percent"
+y_lims <- c(0,1)
+pic <- plot_over_time()
+pic
+```
+
+*For review:*
+* *What is the trend?* Is work received rising or falling? 
+* *Are you doing anything that might affect the trend?* e.g. an initiative encouraging customers to use the Portal?
+
+1e. Work on hand
+
+
+
+PART 2 - Approvals and non-value work
+========================================================
+
+Planning is often described as a barrier to development. This part of the report looks at how many and which types of development proposals get approved. It also looks at how much work gets withdrawn and how much additional work results from the original application e.g discharge of conditions.
+
+2a. Approval Rates
+------------------
+
+*Purpose:* What types of development are we saying 'yes' to and how often? 
+
+```{r echo=FALSE, fig.width=9, fig.height=5, warning=FALSE}
+t <- "2(a) Percentage approved over time"
+y_label <- "approved as a percentage of decisions"
+x_label <- "received month"
+i <- select(lead_council, council, lead_val = decision_issued_val, lead_x=decision_month)
+j <- select(comparator_group, council, group_val = decision_issued_val, group_x=decision_month)
+plot_type <- "percent"
+y_lims <- c(0.5,1)
+pic <- plot_over_time()
+pic
+```
+
+This is the same information broken out by development category. 
+```{r echo=FALSE, warning=FALSE, results='asis'}
+t <- 'development category'
+
+report_table(make_perc_table(i <- select(whole_set, council, cat = dev_group, val=decision_issued_val), t))
+```
+
+
+JOBTODO
+job - count yes's and no's
+are there any trends ?
+
+
+*For review:*
+* *What is the overall trend?* Are you granting more permissions? How might these messages be relayed to stakeholders?
+* *Is the %age of permissions always a positive?* E.g. are certain types of development always controversial, and you are saying yes to more and more of these? 
+* *Do your approval rates differ significantly from your peers on a particular type of development?*  What might be happening elsewhere that you can learn from?  
+
+
+2b. Withdrawal Rates
+------------------
+*Purpose:* Rates of withdrawal are a 'waste' indicator. Where possible they should be reduced to near zero. 
+
+```{r echo=FALSE, fig.width=9, fig.height=5, warning=FALSE}
+t <- "2(b) Withdrawal rates"
+y_label <- "decisions compared to withdrawns"
+x_label <- "received month"
+i <- select(lead_council, council, lead_val = application_status_val, lead_x=decision_month)
+j <- select(comparator_group, council, group_val = application_status_val, group_x=decision_month)
+plot_type <- "percent"
+# y_lims <- c(0,1)
+pic <- plot_over_time()
+pic
+```
+
+This is the same information broken out by development category. 
+```{r echo=FALSE, warning=FALSE, results='asis'}
+t <- 'development category'
+report_table(make_perc_table(i <- select(whole_set, council, cat = dev_group, val=application_status_val), t))
+```
+
+*For review:*
+* *What is the overall trend ?* Are you trying anything to bring rates of withdrawal down? Is it working? Are there particular categories of development that suffer more ?
+* What are withdrawn applications costing you?* For most category of applications, the fee does not cover the cost of processing them. A withdrawn application represents cost of processing the application to the point it is withdrawn, and then there is the potential for a 'free go' (see Part 3 - non-heritage zero fee applications). Is there anything to be done ?
+* *Why are applications getting withdrawn?* How many occur at the request of the council? What do your developer community think ?
+
+2c. Follow-up applications
+-------------------
+*Purpose:* In an ideal world, planning authorities issue permissions so that applicants can begin developing. We've identified several categories of application as 'follow-up' which means there is a series of applications for the same development. Many times these are a product of the market (extensions of time, some NMA) and sometimes these are required by the LPA (discharge of conditions)
+
+```{r echo=FALSE, fig.width=9, fig.height=5, warning=FALSE}
+t <- "2(c) Follow up applications"
+y_label <- "value decisions compared to all decisions"
+x_label <- "received month"
+i <- select(lead_council, council, lead_val = application_type_val, lead_x=decision_month)
+j <- select(comparator_group, council, group_val = application_type_val, group_x=decision_month)
+plot_type <- "percent"
+# y_lims <- c(NA,1)
+pic <- plot_over_time()
+pic
+```
+
+This is the same information broken out by development type. 
+```{r echo=FALSE, warning=FALSE, results='asis'}
+t <- 'development category'
+report_table(make_perc_table(i <- select(whole_set, council, cat = dev_group, val=application_type_val), t))
+```
+
+*For review:*
+* *What is the overall trend ?* 
+* *These category of applications do not cover the costs of processing them.* Is there anything to be done ?
+* *It is likely that more complex developments are more likely to have requirements post decision.* What about the more simple categories ?
+* *What do your developer community think ?* There may be a very positive story here that you should share. 
+
+PART 3 - Fees, resources and investment
+========================================================
+
+This part of the report looks at the investment value that development proposals represent, and how well matched the resources (FTEs) are to the volumes of work
+
+*Purpose:* The following 3 plots follow the same form. These plots are organised by when the application is received (not determined). 
+
+3(a) Fees received per quarter
+-----------------------------
+
+```{r 3a fees, echo=FALSE, fig.width=9, fig.height=5, warning=FALSE}
+
+t <- "3(a) Fees received per quarter"
+y_label <- "Fees £/k"
+x_label <- "received quarter"
+plot_type <- "sum"
+# we need to turn pounds into £k
+i <- select(lead_council, council, lead_val = application_fee, lead_x=received_quarter)
+i <- mutate(i, lead_val = lead_val /1000)
+j <- select(comparator_group, council, group_val = application_fee, group_x=received_quarter)
+j <- mutate(j, group_val = group_val /1000)
+pic <- plot_over_time()
+pic
+```
+
+*For review:*
+* *How is the market behaving ?* You already know your income from fees. This plot whows you how other planning departments are faring so you can see whether changes are part of a trend. 
+
+3(b) Headcount estimate
+-----------------------------
+
+
+```{r 3b FTE, echo=FALSE, fig.width=9, fig.height=5, warning=FALSE}
+t <- "3(b) FTE estimate over time"
+y_label <- "headcount average"
+x_label <- "received quarter"
+plot_type <- "sum"
+# we need to turn hours into portions of people
+# productive work = 60%
+# therefore 1 hr = 1 / (13 weeks x 35 hours x 0.6)
+i <- select(lead_council, council, lead_val = hours, lead_x=received_quarter)
+i <- mutate(i, lead_val = lead_val * 1/(13*35*0.6))
+j <- select(comparator_group, council, group_val = hours, group_x=received_quarter)
+j <- mutate(j, group_val = group_val * 1/(13*35*0.6))
+pic <- plot_over_time()
+pic
+```
+
+> The 'FTE estimate' plot is based on PAS 2012 Benchmark data. 
+
+*For review:*
+* *How does the FTE estimate compare to reality?* What might account for significant differences? You should compare notes with your peers and help refine our time allowances for each class of application (you can see the values we've used for your report at the end of the technical appendix)
+* *What is the overall FTE trend?* Does this correspond with the volumes of applications you are receiving (Section 1)? 
+* *What do these numbers tell you about resourcing the department properly ?* Are there opportunities to re-focus resources?
+
+3(c) Investment estimate over time
+----------------------------------
+
+```{r 3c investment, echo=FALSE, fig.width=9, fig.height=5, warning=FALSE}
+t <- "3(c) Investment estimate over time"
+y_label <- "Investment val ?/m"
+x_label <- "received quarter"
+plot_type <- "sum"
+# we need to turn pounds into ?m (note that value is already in ?k)
+i <- select(lead_council, council, lead_val = value, lead_x=received_quarter)
+i <- mutate(i, lead_val = lead_val /1000)
+j <- select(comparator_group, council, group_val = value, group_x=received_quarter)
+j <- mutate(j, group_val = group_val /1000)
+pic <- plot_over_time()
+pic
+```
+> The 'Investment estimate' plot is based on the build costs for different types of development - these are just PAS estimates for now so are illustrative only. 
+> Estimated cost of work means an estimate accepted by the local authority as being a reasonable amount that would be charged by a person in business to carry out such work (as per building control)
+
+*For review:*
+* *Development Investment - what are the significant messages?* The investment value will represent a significant ?sum and will put a perspective on many decisions facing the service - each planning consent results in some form of inward investment..
+* *What do the trends (rising/falling) mean for your place?* Is there any significance between this and fee income (e.g. considering future resources available)? Is there a significance regarding the FTE estimate (e.g. are you resourced to handle a growing upward trend, might you have to re-focus resources to account for a downward trend)?
+
+3(d) Non-heritage applications zero fee
+--------------------------------------
+
+```{r 3d zerofee, echo=FALSE, fig.width=9, fig.height=5, warning=FALSE}
+t <- "3(d) Non-heritage applications zero fee"
+y_label <- "percentage without fee"
+x_label <- "received quarter"
+i <- select(lead_council, council, lead_val = is_zero_fee, lead_x=received_quarter, dev_group)
+i <- filter(i, dev_group != '5 Heritage')
+j <- select(comparator_group, council, group_val = is_zero_fee, group_x=received_quarter, dev_group)
+j <- filter(j, dev_group != '5 Heritage')
+plot_type <- "percent"
+y_lims <- c(0,1)
+pic <- plot_over_time()
+pic
+```
+*For review:*
+* *Why are you receiving applications without a fee for non-heritage applications?* Zero fee applications can follow previous withdrawns.
+
+PART 4 - Time - Validation, Determination
+========================================================
+This section of the report summarises how long the validation and determination of applications took.
+
+
+4.1 How much work is valid on day 1 ?
+-----------------------------------
+
+*Purpose:* Shows the proportion of applications received that can be worked on straight away.
+
+```{r echo=FALSE, fig.width=7, fig.height=5, warning=FALSE}
+t <- "4.1 Percentage valid on day 1"
+y_label <- "Percentage valid"
+x_label <- "received quarter"
+i <- select(lead_council, council, lead_val = is_valid_day1, lead_x=received_quarter)
+j <- select(comparator_group, council, group_val = is_valid_day1, group_x=received_quarter)
+plot_type <- "percent"
+y_lims <- c(0,1)
+pic <- plot_over_time()
+pic
+```
+
+
+```{r 4_valid_perc, echo=FALSE, results ='asis'}
+t <- 'Development category'
+report_table(make_perc_table(i <- select(whole_set, council, cat = dev_group, val=is_valid_day1), t))
+```
+
+
+*For review:*
+* *The proportion of applications that are invalid.* Anything above your line on the graph is the %age of applications that are invalid on receipt. This represents avoidable time and cost to make them valid. 
+* *How do you compare with your peers?* Is there anything you could learn from those achieving a higher proportion of valid applications?
+* *What is causing invalid applications.* Don't assume that invalid applications are the sole fault [of the applicant/agent]( http://planningadvisor.wordpress.com/2011/11/24/its-not-you-is-it-me/). Consider whether your validation procedures, processes , consistency and customer guidance are as good as they could be.   
+* *What are your applicants and agents saying?* Look over Customer Feedback Section XXXX, is there anything in there that could indicate what the problem with validation might be (e.g. poor guidance, inability to contact a member of staff for advice, inconsistent advice).
+* *Are particularly catgories of applications more likely to be invalid than others?* Might there be a need for some proactive work with applicants, or better on-line guidance. 
+
+The next 3 datasets use 'Boxplots'.  Boxplots allow you to see how much variation there is in a set of data - something that a single number like an 'average' doesn't show you. [Click here for a quick and simple guide to boxplots.](http://en.wikipedia.org/wiki/Box_plot) 
+
+
+4.2  Days to make Valid
+-----------------------
+
+Purpose: Shows the number of days it takes for applications to be made valid. A box-plot displays a range of values (days here). If you can't see a line in the middle of the box plot then your median value is zero (that means that at least half of the applications received are made valid on the day they arrive which is good).
+
+``` {r echo=FALSE, fig.width=4, fig.height=5, warning=FALSE, fig.show='hold'}
+# how many days should the graph go up to ?
+max_days <- 40
+
+# get the columns we want from the lead_council table
+i <- select(lead_council, decision_issued_val, days_makevalid, days_validtodecision, days_receipttodecision,decision_quarter,dev_group)
+# filter them
+i <- filter(i, !is.na(decision_issued_val)) # only want those where decision_issued is not missing
+
+p <- ggplot(i, aes(x=decision_quarter, y=days_makevalid))
+p <- p + geom_boxplot(fill="light green", outlier.shape=NA)
+p <- p + scale_y_continuous("Days to make valid", limits = c(0, max_days))
+p <- p + stat_summary(fun.y = "mean", geom="point", colour="red", size=3)
+p <- p + labs(title = "4.2 Your data")
+p
+# get the columns we want from the group table
+i <- select(comparator_group, decision_issued_val, days_makevalid, days_validtodecision, days_receipttodecision,decision_quarter,dev_group)
+# filter them
+i <- filter(i, !is.na(decision_issued_val)) # only want those where decision_issued is not missing
+p <- ggplot(i, aes(x=decision_quarter, y=days_makevalid))
+p <- p + geom_boxplot(fill="light blue", outlier.shape=NA)
+p <- p + scale_y_continuous("Days to make valid", limits = c(0, max_days))
+p <- p + stat_summary(fun.y = "mean", geom="point", colour="red", size=3)
+p <- p + labs(title = "4.2 Your comparator group")
+p
+```
+
+*For review:*
+* *The green and blue boxes represent the majotity of applications.* These boxes represent what happens most frequently.
+* *The boxes represent a range of days.* The range is the lowest and highest number of days it can take for the majority of applications to be made valid. 
+* *Are the heights of the boxes inconsistent e.g. up and down?* The more erratic the picture, the more inconsistent and uncertain the picture for the customer.  
+* *Do any of the quarters stand out as particularly different (better or worse)?*
+* *Are the heights of the boxes getting smaller over time (taking less time) or taller (taking longer)?* Have you taken any action that might be causing this to happen?
+* *This represents avoidable time and cost to the council and applicants.* It doesn't affect National Indicator statistics (the clock starts ticking once the case has been made valid). BUT it all adds to the customer's wait for a decision. 
+
+```{r 4_ valid_time, echo=FALSE, warning=FALSE, results='asis'}
+i <- select(lead_council, decision_issued_val, days_makevalid, dev_group)
+# filter them
+i <- filter(i, !is.na(decision_issued_val)) # only want those where decision_issued is 
+
+i.summary <- i %.%
+  group_by(dev_group) %.%
+  summarise(count = n(), ave_days = mean(days_makevalid))
+i.summary$queue_time <- i.summary$count * i.summary$ave_days
+report_table(i.summary)
+```
+
+*For review:*
+* *This table breaks down validation per development type.* The average of the days taken is multiplied out by the number of applications received. This is to show where the biggest amount of  is. 
+
+4.3  Days from declared Valid to Decision issued
+------------------------------------------------
+*Purpose:* Shows the number of days between applications being declared valid and a decision notice being issued. 
+
+``` {r echo=FALSE, fig.width=4, fig.height=5, warning=FALSE, fig.show='hold'}
+# how many days should the graph go up to ?
+max_days <- 100
+
+# get the columns we want from the lead_council table
+i <- select(lead_council, decision_issued_val, days_makevalid, days_validtodecision, days_receipttodecision, decision_quarter,dev_group)
+# filter them
+i <- filter(i, !is.na(decision_issued_val)) # only want those where decision_issued is not missing
+
+p <- ggplot(i, aes(x=decision_quarter, y=days_validtodecision))
+p <- p + geom_boxplot(fill="light green", outlier.shape=NA)
+p <- p + scale_y_continuous("Days from valid to decision", limits = c(0, max_days))
+p <- p + stat_summary(fun.y = "mean", geom="point", colour="red", size=3)
+p <- p + labs(title = "4.3 Your data")
+p
+# get the columns we want from the group table
+i <- select(comparator_group, decision_issued_val, days_makevalid, days_validtodecision, days_receipttodecision,decision_quarter,dev_group)
+# filter them
+i <- filter(i, !is.na(decision_issued_val)) # only want those where decision_issued is not missing
+p <- ggplot(i, aes(x=decision_quarter, y=days_validtodecision))
+p <- p + geom_boxplot(fill="light blue", outlier.shape=NA)
+p <- p + scale_y_continuous("Days from valid to decision", limits = c(0, max_days))
+p <- p + stat_summary(fun.y = "mean", geom="point", colour="red", size=3)
+p <- p + labs(title = "4.3 Your comparator group")
+p
+```
+
+*For review:* As previous box plot plus
+* *Are the 8/13 week targets driving decision making times or do you driven by 'what is the ealiest I can issue the decision'?* Narrow green/blue boxes clustered close to the 56 day mark are an indicator of target-driven decision making.  A lower edge to the box indicates that decisions are issued early. 
+
+4.4  Days from Receipt to Decision issued
+-----------------------------------------
+*Purpose:* Shows the number of days between applications being received and a decision notice being issued. 
+
+``` {r echo=FALSE, fig.width=4, fig.height=5, warning=FALSE, fig.show='hold'}
+# how many days should the graph go up to ?
+max_days <- 100
+
+# get the columns we want from the lead_council table
+i <- select(lead_council, decision_issued_val, days_makevalid, days_validtodecision, days_receipttodecision, decision_quarter,dev_group)
+# filter them
+i <- filter(i, !is.na(decision_issued_val)) # only want those where decision_issued is not missing
+
+p <- ggplot(i, aes(x=decision_quarter, y=days_receipttodecision))
+p <- p + geom_boxplot(fill="light green", outlier.shape=NA)
+p <- p + scale_y_continuous("Days from receipt to decision", limits = c(0, max_days))
+p <- p + labs(title = "4.4 Your data")
+p <- p + stat_summary(fun.y = "mean", geom="point", colour="red", size=3)
+p
+
+# get the columns we want from the group table
+i <- select(comparator_group, decision_issued_val, days_makevalid, days_validtodecision, days_receipttodecision, decision_quarter,dev_group)
+# filter them
+i <- filter(i, !is.na(decision_issued_val)) # only want those where decision_issued is not missing
+p <- ggplot(i, aes(x=decision_quarter, y=days_receipttodecision))
+p <- p + geom_boxplot(fill="light blue", outlier.shape=NA)
+p <- p + stat_summary(fun.y = "mean", geom="point", colour="red", size=3)
+p <- p + scale_y_continuous("Days from receipt to decision", limits = c(0, max_days))
+p <- p + labs(title = "4.4 Your comparator group")
+p
+```
+
+```{r 4_all_times, echo=FALSE, warning=FALSE, results='asis'}
+i <- select(lead_council, decision_issued_val, days_makevalid, days_validtodecision, days_receipttodecision, dev_group)
+# filter them
+i <- filter(i, !is.na(decision_issued_val)) # only want those where decision_issued is 
+
+i.summary <- i %.%
+  group_by(dev_group) %.%
+  summarise(count = n(), 
+            valid_days = mean(days_makevalid),
+            NI_days = mean(days_validtodecision),
+            endtoend = mean(days_receipttodecision)
+            )
+i.summary <- rename(i.summary, replace=c(dev_group = 'development category'))
+report_table(i.summary)
+```
+
+*For review:* As previous plus
+* *How much difference is there between your reported performance stats (NI_days) and the customers experience (endtoend)?*  
+
+PART 5 - Spotlight on Simple Applications
+=======================================================
+This section uses the simplest applications (e.g. Householder, trees and change of use - rcode groups 3A, 4A and 9). They represent the largest proportion of your work. Understanding what is happening here can tell you a lot about how the majority of your time and resources are used and to what effect.
+
+5.1 - Application Type
+----------------------
+
+*Purpose:* Not all applications represent the same type of work for a council.  This part of the report classifies applications into 'procedure types' based on what action they represent e.g. an 'application' (application process), 'follow up' (action after the decision e.g. conditions), 'Prior' (prior approval) and 'Certificate' (e.g. of lawfulness).  
+
+```{r app_type, echo=FALSE, results='asis', warning=FALSE, fig.width=10, fig.height=5 }
+
+simple_apps <- filter(whole_set, dev_group == 'adverts' | dev_group =='householders' | dev_group == 'trees' | dev_group == 'use')
+
+i <- select(simple_apps, council, application_status_sys, decision_issued_sys,
+            application_type_sys, decision_route_sys)
+
+t <- 'application type'
+a <- plot_table(i <- select(simple_apps, council, cat = application_type_sys), t)
+b <- make_prop_table(i <- select(simple_apps, council, cat = application_type_sys), t)
+grid.arrange(a, tableGrob(b, show.rownames=FALSE, row.just="right"), ncol=2, widths=c(4,6))
+```
+
+*For review:*
+* *What is the 'mix' of the work?* Remember the types of development represented here. 
+* *Does the proportion of 'follow up' look right for simple developments?* Follow up work can take up significant time and resource for little fee income. 
+* *Priors* - How is the permitted development for householders and changes of use affecting workloads? 
+
+5.2 - Application status
+----------------------
+
+*Purpose:* This is the pipeline of work indicating how much work has been dealt with (decided), how much is being worked on (on hand), how much has been lost (withdrawn) and the proportion of non-determination appeals being dealt with.
+
+```{r app_status, echo=FALSE, results='asis', warning=FALSE, fig.width=10, fig.height=5 }
+t <- 'Application status'
+a <- plot_table(i <- select(simple_apps, council, cat = application_status_sys), t)
+b <- make_prop_table(i <- select(simple_apps, council, cat = application_status_sys), t)
+grid.arrange(a, tableGrob(b, show.rownames=FALSE, row.just="right"), ncol=2, widths=c(4,6))
+
+```
+
+
+JOBTODO check this graph
+```{r wip, echo=FALSE, results='asis', warning=FALSE, fig.width=10, fig.height=5 }
+
+i <- select(whole_set, council, received_month, decision_month, application_status_sys)
+i <- filter(i, application_status_sys != "withdrawn")
+
+apps_received <- group_by(i, council, received_month)
+apps_received_permonth <- summarise(apps_received, apps_in = n())
+names(apps_received_permonth) <- c('council', 'month', 'apps_in')
+
+apps_determined <- group_by(i, council, decision_month)
+apps_determined_permonth <- summarise(apps_determined, apps_out = n())
+names(apps_determined_permonth) <- c('council', 'month', 'apps_out')
+
+monthly_list <- merge(apps_received_permonth, apps_determined_permonth, all=TRUE)
+monthly_list[is.na(monthly_list)] <- 0
+
+monthly_list$apps_diff <- monthly_list$apps_in - monthly_list$apps_out
+
+monthly_list <- arrange(monthly_list, council, month)
+monthly_list <- mutate(monthly_list, apps_inhand = cumsum(apps_diff))
+
+monthly_ave <- group_by(monthly_list, council)
+monthly_ave <- summarise(monthly_list, monthly_ave = mean(apps_in, na.rm=TRUE))
+
+
+p <- ggplot()
+p <- p + geom_line(data=monthly_list, aes(x=month, y=apps_inhand, colour=council, group=council), size=1)
+monthly_list_lead <- filter(monthly_list, council == report_lead)
+p <- p + geom_line(data=monthly_list_lead, aes(x=month, y=apps_inhand, colour=council, group=council), size=3)
+p
+```
+
+*For review:*
+* What is the 'mix'? How much work is on hand over the period and are there any resource implications?
+* How much work is being appealed and/or withdrawn?  Remember the types of development represented here. Why is development of this type going to appeal?  Why is work being withdrawn. Both represent avoidable cost and waste/duplication of work.
+
+
+5.3 - Decision Issued
+----------------------
+*Purpose:* This shows you what proportion of this type of development you say 'yes' (grant) and 'no' (refuse) to. There are 2 additional decisions included - 'split' (part refused, part granted) and 'withdrawn'. 
+
+```{r dec_issued, echo=FALSE, results='asis', warning=FALSE, fig.width=10, fig.height=5 }
+t <- 'Decision issued'
+a <- plot_table(i <- select(simple_apps, council, cat = decision_issued_sys), t)
+b <- make_prop_table(i <- select(simple_apps, council, cat = decision_issued_sys), t)
+grid.arrange(a, tableGrob(b, show.rownames=FALSE, row.just="right"), ncol=2, widths=c(4,6))
+```
+
+*For review:*
+* *Are you refusing significant proportions of this type of development?* Remember the types of development represented here. Why is development of this type being refused?
+* *Are you granting permission for significant proportions of this type of development?* Could you standardise/streamline more of the decision making process? 
+
+5.4 - Decision Route
+----------------------
+*Purpose:* This shows you what proportion of this type of development is decided under delegated powers.  
+
+```{r dec_route, echo=FALSE, results='asis', warning=FALSE, fig.width=10, fig.height=5 }
+t <- 'Decision route'
+a <- plot_table(i <- select(simple_apps, council, cat = decision_route_sys), t)
+b <- make_prop_table(i <- select(simple_apps, council, cat = decision_route_sys), t)
+grid.arrange(a, tableGrob(b, show.rownames=FALSE, row.just="right"), ncol=2, widths=c(4,6))
+
+```
+
+*For review:*
+* *Is the amount of work delegated what you expect?* Remember the types of development represented here. Why is any of this type of development going to committee? 
+
+5.5 - Average end-to-end Times
+------------------------------
+*Purpose:* Shows the number of days between applications being received and a decision notice being issued month-by-month.
+
+```{r echo=FALSE, fig.width=6, fig.height=5, warning=FALSE}
+t <- "Ave End to end time (days)"
+y_label <- "Days"
+x_label <- "Month decided"
+i <- select(lead_council, council, lead_val = days_receipttodecision, lead_x=decision_month)
+i <- filter(i, lead_x>3, lead_x <= 18) # discard the first 12 weeks
+j <- select(comparator_group, council, group_val = days_receipttodecision, group_x=decision_month)
+plot_type <- "mean"
+pic <- plot_over_time()
+pic
+```
+
+*For review:*
+* Do the numbers reflect your reported performance stats? The days reported here are from application receipt not when made valid. This is a better measure of the customer's experience of how long the process really takes. 
+* Any lumps and bumps ? (eg xmas) This might reflect fragile arrangements or lack of resources. 
+
+Appendix
+========================================================
+
+This is the technical appendix where you can:
+1.  Check mappings - have we translated the codes and references that your back-office system uses into the correct Quality Framework name for things?
+2.	Check for gaps and errors, and problems with time (e.g. where dates are missing or go backwards)
+The codes that you use are shown in the second column. They should all map against the normal framework names for things which are shown in the top row. The tables work using counts of applications. 
+There are 3 main things to do/check on each dataset:
+* *Do the counts look right?* E.g. are there counts against things that you don't use? Or are the counts lower/higher that you would expect?
+* *Note columns that start with "Var.2"* a count in here means the mapping is missing e.g. an application contains this reference but you haven't provided us with a name to map it against.
+* *Gaps and errors section* - If there are *significant numbers*, this should be fixed.
+
+Before you check the mappings, check that applications cover the correct chunk of time.
+
+Some of the trends and averages will mislead if the datasets cover different ranges, and if quarters don't have 4 weeks of data the graph may also mislead.
+
+```{r count-check, echo=FALSE, warning=FALSE, results='asis'}
+i <- select(whole_set, council, received_month, received_quarter)
+i_pivot <- dcast(i, received_quarter + received_month ~ council, value.var='received_month', fun.aggregate=length)
+report_table(i_pivot)
+```
+
+This is the same information by development type so you can check your mappings and those of your comparator group:
+
+```{r dev-check, echo=FALSE, warning=FALSE, results='asis'}
+i <- select(whole_set, council, dev_group)
+i_pivot <- dcast(i, dev_group~ council, value.var='dev_group', fun.aggregate=length)
+report_table(i_pivot)
+```
+
+
+Colophon
+----------------------------------
+This is a draft report for the Planning Quality Framework. It is version 0.6 last changed on 2014-09-03. It was generated on `r report_date`. 
+
+This is a project from the [Planning Advisory Service](http://pas.gov.uk). There is more information at our [project pages](http://www.pas.gov.uk/events-and-support2/-/journal_content/56/332612/5730199/ARTICLE)
+
+With thanks to the makers of the [R Language](http://www.r-project.org/) the [R Studio](http://www.rstudio.org), and marvellous libraries [ggplot2](http://ggplot2.org/) and [KnitR](http://yihui.name/knitr/)
+
